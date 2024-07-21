@@ -1,3 +1,4 @@
+import sys
 import tkinter
 import json
 import tkinter.filedialog
@@ -14,6 +15,30 @@ from attribute_calculator import calculate_attributes
 import re
 import tkinter.simpledialog
 import os
+import shutil
+import atexit
+import signal
+
+def cleanup():
+    folder_path = 'ingredient_images'
+    if os.path.exists(folder_path):
+        try:
+            shutil.rmtree(folder_path)
+            print(f"Deleted {folder_path} folder")
+        except Exception as e:
+            print(f"Failed to delete {folder_path}: {str(e)}")
+
+def signal_handler(signum, frame):
+    print(f"Received signal {signum}")
+    cleanup()
+    sys.exit(0)
+
+# Register cleanup function to be called at exit
+atexit.register(cleanup)
+
+# Set up signal handlers
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 class ZeldaRecipesUI:
     def __init__(self, master):
@@ -34,6 +59,7 @@ class ZeldaRecipesUI:
         self.result_text.pack()
 
     def upload_image(self):
+        self.delete_ingredient_images()  # Delete directory at the start
         file_path = tkinter.filedialog.askopenfilename()
         if file_path:
             image = PIL.Image.open(file_path)
@@ -44,6 +70,7 @@ class ZeldaRecipesUI:
             self.image_path = file_path
 
     def process_image(self):
+        self.delete_ingredient_images()  # Delete directory at the start
         if hasattr(self, 'image_path'):
             self.original_image = cv2.imread(self.image_path)
             self.original_height, self.original_width = self.original_image.shape[:2]
@@ -243,6 +270,30 @@ class ZeldaRecipesUI:
         self.result_text.delete(1.0, tkinter.END)
         self.result_text.insert(tkinter.END, json.dumps(recipe_attributes, indent=2))
 
-root = tkinter.Tk()
-app = ZeldaRecipesUI(root)
-root.mainloop()
+    def delete_ingredient_images(self):
+        folder_path = 'ingredient_images'
+        if os.path.exists(folder_path):
+            for filename in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print(f'Failed to delete {file_path}. Reason: {e}')
+            os.rmdir(folder_path)
+            print(f"Deleted {folder_path} folder")
+        else:
+            print(f"{folder_path} folder does not exist")
+
+    def on_closing(self):
+        print("Closing application...")
+        self.delete_ingredient_images()
+        self.master.destroy()
+
+if __name__ == "__main__":
+    root = tkinter.Tk()
+    app = ZeldaRecipesUI(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)
+    root.mainloop()

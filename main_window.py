@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
@@ -8,6 +9,9 @@ import json
 from ingredient_processor import categorize_ingredients
 from recipe_generator import generate_recipes
 from attribute_calculator import calculate_attributes
+import cv2
+import os
+import shutil
 
 class ZeldaRecipesUI:
     def __init__(self, master: tk.Tk):
@@ -28,8 +32,11 @@ class ZeldaRecipesUI:
         self.result_text = tk.Text(master, height=20, width=50)
         self.result_text.pack()
 
+        master.protocol("WM_DELETE_WINDOW", self.on_closing)
+
     def upload_image(self):
         """Handle image upload and display."""
+        self.delete_ingredient_images()  # Delete directory at the start
         file_path = filedialog.askopenfilename()
         if file_path:
             image = Image.open(file_path)
@@ -41,6 +48,7 @@ class ZeldaRecipesUI:
 
     def process_image(self):
         """Process the uploaded image and display results."""
+        self.delete_ingredient_images()  # Delete directory at the start
         if hasattr(self, 'image_path'):
             grid_selector = GridSelector(self.master, self.image_path)
             cells = grid_selector.get_cells()
@@ -51,8 +59,36 @@ class ZeldaRecipesUI:
             recipes = generate_recipes(categorized_ingredients)
             recipe_attributes = calculate_attributes(recipes)
             self.display_results(recipe_attributes)
+            self.close_resources()
 
     def display_results(self, recipe_attributes):
         """Display the recipe attributes in the result text area."""
         self.result_text.delete(1.0, tk.END)
         self.result_text.insert(tk.END, json.dumps(recipe_attributes, indent=2))
+
+    def close_resources(self):
+        # Close any open file handles or resources
+        cv2.destroyAllWindows()
+        # Add any other necessary cleanup operations
+
+    def delete_ingredient_images(self):
+        folder_path = 'ingredient_images'
+        if os.path.exists(folder_path):
+            for filename in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print(f'Failed to delete {file_path}. Reason: {e}')
+            os.rmdir(folder_path)
+            print(f"Deleted {folder_path} folder")
+        else:
+            print(f"{folder_path} folder does not exist")
+
+    def on_closing(self):
+        """Handle the window close event."""
+        self.delete_ingredient_images()
+        self.master.destroy()

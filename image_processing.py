@@ -21,6 +21,7 @@ def process_image(cells: List[np.ndarray]) -> List[Dict]:
         # Save the cell image
         image_path = f'ingredient_images/ingredient_{i+1}.png'
         cv2.imwrite(image_path, cell)
+        cv2.destroyAllWindows()  # Close all OpenCV windows
 
         ingredient = {
             'name': f'Ingredient_{i+1}',
