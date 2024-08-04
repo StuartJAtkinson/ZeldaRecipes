@@ -50,6 +50,10 @@ class ZeldaRecipesUI:
         """Process the uploaded image and display results."""
         self.delete_ingredient_images()  # Delete directory at the start
         if hasattr(self, 'image_path'):
+            # Preprocess the image
+            self.original_image = cv2.imread(self.image_path)
+            self.original_image = self.preprocess_image(self.original_image)
+            
             grid_selector = GridSelector(self.master, self.image_path)
             cells = grid_selector.get_cells()
             ingredients = process_image(cells)
@@ -60,6 +64,14 @@ class ZeldaRecipesUI:
             recipe_attributes = calculate_attributes(recipes)
             self.display_results(recipe_attributes)
             self.close_resources()
+
+    def preprocess_image(self, image):
+        """Preprocess the image to enhance it for OCR."""
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                     cv2.THRESH_BINARY_INV, 11, 2)
+        return thresh
 
     def display_results(self, recipe_attributes):
         """Display the recipe attributes in the result text area."""

@@ -245,15 +245,14 @@ class ZeldaRecipesUI:
             quantity_entry = tkinter.Entry(frame, textvariable=quantity_var, width=5)
             quantity_entry.pack(side=tkinter.LEFT, padx=10)
 
-            def update_ingredient(index, name_var, quantity_var):
-                ingredients[index]['name'] = name_var.get()
-                ingredients[index]['quantity'] = quantity_var.get()
-
-            save_button = tkinter.Button(frame, text="Save", command=lambda idx=i, nv=name_var, qv=quantity_var: update_ingredient(idx, nv, qv))
-            save_button.pack(side=tkinter.LEFT, padx=10)
+            ocr_button = tkinter.Button(frame, text="Run OCR", command=lambda idx=i: self.run_ocr(idx, ingredients, quantity_var))
+            ocr_button.pack(side=tkinter.LEFT, padx=10)
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
+
+        self.log_text = tkinter.Text(ingredient_window, height=10)
+        self.log_text.pack(fill="x", padx=10, pady=10)
 
         def confirm_ingredients():
             ingredient_window.destroy()
@@ -261,6 +260,19 @@ class ZeldaRecipesUI:
 
         confirm_button = tkinter.Button(ingredient_window, text="Confirm Ingredients", command=confirm_ingredients)
         confirm_button.pack(pady=10)
+
+    def run_ocr(self, index, ingredients, quantity_var):
+        cell = ingredients[index]['image']
+        gray = cv2.cvtColor(cv2.imread(cell), cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+        config = '--psm 7 --oem 3 -c tessedit_char_whitelist=x0123456789'
+        quantity_text = pytesseract.image_to_string(thresh, config=config)
+        self.log_text.insert(tkinter.END, f"OCR Output for {ingredients[index]['name']}: {quantity_text}\n")
+        quantity_match = re.search(r'x(\d+)', quantity_text)
+        quantity = int(quantity_match.group(1)) if quantity_match else 0
+        ingredients[index]['quantity'] = quantity
+        quantity_var.set(quantity)
 
     def process_confirmed_ingredients(self, ingredients):
         categorized_ingredients = categorize_ingredients(ingredients)
